@@ -1,131 +1,111 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import React from 'react';
-import type {PropsWithChildren} from 'react';
+import React, {useEffect, useState} from 'react';
 import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
   View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/AntDesign';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App = () => {
+  const [task, setTask] = useState('');
+  const [tasks, setTasks] = useState([]);
+  const [editIndex, setEditIndex] = useState(null);
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+  useEffect(() => {
+    loadTasks();
+  }, []);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+  useEffect(() => {
+    AsyncStorage.setItem('TASKS', JSON.stringify(tasks));
+  }, [tasks]);
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const loadTasks = async () => {
+    const saved = await AsyncStorage.getItem('TASKS');
+    if (saved) {
+      setTasks(JSON.parse(saved));
+    }
   };
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the recommendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
+  const handleAddOrUpdate = () => {
+    if (!task.trim()) return;
+
+    if (editIndex !== null) {
+      const updated = [...tasks];
+      updated[editIndex] = task;
+      setTasks(updated);
+      setEditIndex(null);
+    } else {
+      setTasks([...tasks, task]);
+    }
+
+    setTask('');
+  };
+
+  const handleDelete = index => {
+    Alert.alert('Confirm', 'Delete this task?', [
+      {text: 'Cancel'},
+      {
+        text: 'Delete',
+        onPress: () => {
+          const updated = tasks.filter((_, i) => i !== index);
+          setTasks(updated);
+        },
+      },
+    ]);
+  };
+
+  const handleEdit = index => {
+    setTask(tasks[index]);
+    setEditIndex(index);
+  };
 
   return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+    <View className="flex-1 bg-gray-100 px-4 pt-8">
+      <Text className="text-3xl font-bold text-center mb-6 text-gray-800">
+        📝 ToDo App
+      </Text>
+
+      <View className="flex-row items-center bg-white rounded-xl shadow-md p-3 mb-6">
+        <TextInput
+          className="flex-1 border border-gray-300 rounded-lg px-3 py-2 mr-2 text-base bg-gray-50"
+          placeholder="Enter your task"
+          value={task}
+          onChangeText={setTask}
+        />
+        <TouchableOpacity
+          onPress={handleAddOrUpdate}
+          className="bg-blue-600 px-4 py-2 rounded-lg">
+          <Text className="text-white font-semibold text-base">
+            {editIndex !== null ? 'Update' : 'Add'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={tasks}
+        keyExtractor={(item, index) => index.toString()}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{paddingBottom: 100}}
+        renderItem={({item, index}) => (
+          <View className="flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm mb-3">
+            <Text className="text-base text-gray-800 flex-1">{item}</Text>
+            <View className="flex-row space-x-3 ml-4">
+              <TouchableOpacity onPress={() => handleEdit(index)}>
+                <Icon name="edit" size={22} color="#f59e0b" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDelete(index)}>
+                <Icon name="delete" size={22} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
     </View>
   );
-}
-
-const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
+};
 
 export default App;
